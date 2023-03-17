@@ -18,25 +18,27 @@ See options/base_options.py and options/train_options.py for more training optio
 See training and test tips at: https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/master/docs/tips.md
 See frequently asked questions at: https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/master/docs/qa.md
 """
+import argparse
+import json
+import os
+import signal
 import time
-from options.train_options import TrainOptions
+import warnings
+
+import torch
+import torch.distributed as dist
+import torch.multiprocessing as mp
+
 from data import (
+    create_dataloader,
     create_dataset,
     create_dataset_temporal,
-    create_dataloader,
     create_iterable_dataloader,
 )
 from models import create_model
-from util.visualizer import Visualizer
+from options.train_options import TrainOptions
 from util.util import flatten_json
-import torch.multiprocessing as mp
-import os
-import torch.distributed as dist
-import signal
-import torch
-import json
-import warnings
-import argparse
+from util.visualizer import Visualizer
 
 
 def setup(rank, world_size, port):
@@ -62,7 +64,6 @@ def signal_handler(sig, frame):
 
 
 def train_gpu(rank, world_size, opt, dataset, dataset_temporal):
-
     if not opt.warning_mode:
         warnings.simplefilter("ignore")
 
@@ -152,7 +153,6 @@ def train_gpu(rank, world_size, opt, dataset, dataset_temporal):
         for i, data_list in enumerate(
             dataloaders
         ):  # inner loop (minibatch) within one epoch
-
             data = data_list[0]
             if use_temporal:
                 temporal_data = data_list[1]
@@ -161,12 +161,10 @@ def train_gpu(rank, world_size, opt, dataset, dataset_temporal):
             t_data_mini_batch = iter_start_time - iter_data_time
 
             model.set_input(data)  # unpack data from dataloader and apply preprocessing
-
             if use_temporal:
                 model.set_input_temporal(temporal_data)
 
             model.optimize_parameters()  # calculate loss functions, get gradients, update network weights
-
             t_comp = (time.time() - iter_start_time) / opt.train_batch_size
 
             batch_size = model.get_current_batch_size() * len(opt.gpu_ids)
@@ -174,7 +172,6 @@ def train_gpu(rank, world_size, opt, dataset, dataset_temporal):
             epoch_iter += batch_size
 
             if rank_0:
-
                 if (
                     total_iters % opt.output_display_freq < batch_size
                 ):  # display images on visdom and save images to a HTML file
@@ -351,7 +348,6 @@ def get_override_options_names(remaining_args):
 
 
 if __name__ == "__main__":
-
     main_parser = argparse.ArgumentParser(add_help=False)
 
     main_parser.add_argument(
@@ -361,7 +357,6 @@ if __name__ == "__main__":
     main_opt, remaining_args = main_parser.parse_known_args()
 
     if main_opt.config_json != "":
-
         override_options_names = get_override_options_names(remaining_args)
 
         if not "--dataroot" in remaining_args:
