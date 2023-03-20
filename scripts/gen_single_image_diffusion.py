@@ -47,6 +47,7 @@ def load_model(modelpath, model_in_file, device, sampling_steps, sampling_method
 
     model = diffusion_networks.define_G(**vars(opt))
     model.eval()
+
     model.load_state_dict(torch.load(modelpath + "/" + model_in_file))
 
     # sampling steps
@@ -77,6 +78,7 @@ def generate(
     img_in,
     mask_in,
     bbox_in,
+    bbox_ref_id,
     bbox_width_factor,
     bbox_height_factor,
     crop_width,
@@ -148,8 +150,11 @@ def generate(
             hc_width = int(crop_width / 2)
             hc_height = int(crop_height / 2)
             # select one bbox and crop around it
-            bbox_idx = random.choice(range(len(bboxes)))
-            bbox_orig = bboxes[bbox_idx]
+            if bbox_ref_id >= 0:
+                bbox_orig = bboxes[bbox_ref_id]
+            else:
+                bbox_ref_id = np.random.randint(0, len(bboxes))
+                bbox_orig = bboxes[bbox_ref_id]
             if bbox_width_factor > 0.0:
                 bbox_orig[0] -= max(0, int(bbox_width_factor * bbox_orig[0]))
                 bbox_orig[2] += max(0, int(bbox_width_factor * bbox_orig[2]))
@@ -200,7 +205,7 @@ def generate(
             load_size=opt.data_online_creation_load_size_A,
             get_crop_coordinates=True,
             crop_center=True,
-            bbox_ref_id=bbox_idx,
+            bbox_ref_id=bbox_ref_id,
         )
 
         img, mask = crop_image(
@@ -216,7 +221,7 @@ def generate(
             load_size=opt.data_online_creation_load_size_A,
             crop_coordinates=crop_coordinates,
             crop_center=True,
-            bbox_ref_id=bbox_idx,
+            bbox_ref_id=bbox_ref_id,
         )
 
         x_crop, y_crop, crop_size = crop_coordinates
